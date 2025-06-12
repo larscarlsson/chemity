@@ -1,6 +1,6 @@
 import streamlit as st
-import pymupdf  # PyMuPDF for PDF
 import pandas as pd
+
 
 # Placeholder mappings for demonstration
 TARIC_CODES = {
