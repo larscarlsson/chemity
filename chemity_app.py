@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 
+from gemini_interface import GeminiPDFProcessor
 
 # Placeholder mappings for demonstration
 TARIC_CODES = {
@@ -29,9 +30,21 @@ else:
         text = ""
         try:
             if file_name.lower().endswith(".pdf"):
-                doc = pymupdf.open(stream=file.read(), filetype="pdf")
-                text = "".join(page.get_text() for page in doc)  # extract all pages text
-                doc.close()
+                gemini_parser = GeminiPDFProcessor()
+                # --- Define your prompt instruction ---
+                prompt_for_summary = "Summarize the key concepts of AI and Machine Learning as described in the document, in no more than 4 sentences."
+                prompt_for_extraction = "Extract any specific definitions of AI or Machine Learning provided in the document. List them clearly."
+
+                # --- Process the PDF with different prompts ---
+                print("\n--- Running Summary Task ---")
+                summary_result = gemini_parser.process_pdf(file_name, prompt_for_summary)
+                if summary_result:
+                    print(f"\nTask Complete: Summary Generated.")
+
+                print("\n\n--- Running Extraction Task ---")
+                extraction_result = gemini_parser.process_pdf(file_name, prompt_for_extraction)
+                text = extraction_result
+
             elif file_name.lower().endswith((".xls", ".xlsx")):
                 file.seek(0)
                 df = pd.read_excel(file)
