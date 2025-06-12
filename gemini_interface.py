@@ -1,6 +1,6 @@
 import google.generativeai as genai
 import os
-import PyPDF2
+#import PyPDF2
 from io import BytesIO # Although not strictly used for file paths, good to keep in mind for in-memory PDFs
 
 
