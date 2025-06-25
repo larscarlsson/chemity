@@ -275,15 +275,19 @@ class GeminiPDFProcessor:
         and translates them to English.
         """
         st.info("Extracting components from product sheet...")
-        product_sheet_text = self._extract_text_from_pdf_stream(product_sheet_pdf_stream)
+        #product_sheet_text = self._extract_text_from_pdf_stream(product_sheet_pdf_stream)
+        product_sheet_text = extract_text_from_uploaded(product_sheet_pdf_stream)
+
         if product_sheet_text is None:
             return []
+
 
         component_extraction_prompt = (
             "From the following product description, identify and list all described components "
             "and any probable components that would typically be part of such a product. "
             "Present them as a comma-separated list of items. "
-            "Example: 'Stainless steel housing, mixing bowl, LCD screen, digital timer, motor, compressor, power cord'."
+            "If no components are described or you cannot confidently identify any, respond only with an empty list (leave blank). "
+            "Do not invent or suggest generic product components or make up items. "
             "\n\n--- Product Description Start ---\n"
             f"{product_sheet_text}"
             "\n--- Product Description End ---"
