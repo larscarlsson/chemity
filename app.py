@@ -5,6 +5,7 @@ from PyPDF2.errors import PdfReadError
 import re
 from io import BytesIO
 import time
+import pandas as pd
 
 # ReportLab Imports
 from reportlab.lib.pagesizes import letter
@@ -18,6 +19,8 @@ import google.generativeai as genai
 from langchain_google_genai import GoogleGenerativeAIEmbeddings
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.retrievers import EnsembleRetriever
+from langchain.schema import Document
 
 # CORRECTED IMPORT FOR CHROMA
 try:
@@ -38,6 +41,44 @@ from langchain.chains.combine_documents import create_stuff_documents_chain
 
 # HTML Escaping for ReportLab
 import html as html_escaper
+
+# ----------- NEW: Load substances from Excel ---------------------
+def load_substances_from_excel(excel_path):
+    df = pd.read_excel(excel_path)
+    docs = []
+    for idx, row in df.iterrows():
+        # Adjust these columns to match your Excel headers if needed!
+        doc_text = (
+            "[REACH_REFERENCE_LIST]\n"
+            f"Substance: {row.get('Substance Name', '')}\n"
+            f"CAS: {row.get('CAS Number', '')}\n"
+            f"EC: {row.get('EC Number', '')}\n"
+            f"Row: {row.to_dict()}"
+        )
+        docs.append(doc_text)
+    return docs
+# ---------------------------------------------------------------
+
+# --- Streamlit App ---
+
+st.set_page_config(
+    page_title="REACH Compliance Assistant",
+    page_icon="🔬",
+    layout="wide"
+)
+
+st.title("🔬 REACH Compliance Assistant")
+st.markdown("Upload a product sheet PDF, identify components, and verify their compliance against REACH legislation.")
+
+# --- Initialize Session State ---
+if 'extracted_components' not in st.session_state:
+    st.session_state.extracted_components = []  # List of {'original': ..., 'english': ...} dicts
+if 'reach_verification_results' not in st.session_state:
+    st.session_state.reach_verification_results = []  # List of {'component_original': ..., 'component_english': ..., 'applicability': ...}
+if 'product_pdf_processed' not in st.session_state:
+    st.session_state.product_pdf_processed = False
+if 'reach_db_ready' not in st.session_state:
+    st.session_state.reach_db_ready = False
 
 
 # --- GeminiPDFProcessor Class ---
@@ -129,7 +170,7 @@ class GeminiPDFProcessor:
                 loaded_collection = client.get_or_create_collection(name=collection_name)
 
                 if loaded_collection.count() > 0:
-                    st.success(f"Loaded existing REACH knowledge base with {loaded_collection.count()} documents.")
+                    st.success(f"Loaded existing REACH knowledge base with {loaded_collection.count()} document chunks.")
                     return db
                 else:
                     st.warning(
@@ -169,7 +210,11 @@ class GeminiPDFProcessor:
         """Translates text using the LLM."""
         if not text:
             return text
-        translation_prompt = f"Translate the following term into {target_language}: '{text}'"
+        #translation_prompt = f"Translate the following term into {target_language}: '{text}'"
+        translation_prompt = (
+            f"Translate the following term to {target_language} and ONLY respond with the translated word or phrase, nothing else: '{text}'"
+        )
+
         try:
             translation_response = self.llm.invoke(translation_prompt)
             return translation_response.content.strip()
@@ -226,25 +271,30 @@ class GeminiPDFProcessor:
         st.success(f"Identified and translated {len(translated_components)} components.")
         return translated_components
 
-    def verify_component_reach(self, component_name_english, reach_retriever):
+    def verify_component_reach(self, component_name_english, combined_retriever):
         """
         Verifies how REACH legislation applies to a single component using RAG.
         Uses the English name for verification.
         """
         reach_verification_prompt_template = PromptTemplate.from_template(
-            """You are an expert on EU REACH legislation. Given the following context documents about REACH:
-            {context}
-
-            Please explain how the REACH legislation applies to the following component, or if it is not directly addressed,
-            discuss general principles of REACH that might be relevant. Be concise and focus on direct applicability.
-            If the context does not contain enough information to make a direct statement, indicate that.
-
-            Component: '{input}'
             """
+        You are an expert on EU REACH legislation. The context below may include both official REACH legislation text and chunks from an official REACH controlled substance reference list, each tagged with [REACH_REFERENCE_LIST].
+
+        YOUR TASK:
+        1. If any context chunk is tagged [REACH_REFERENCE_LIST] and exactly matches the substance below (by name, CAS, or EC number), begin your answer with: "REACH applies: This substance is listed as controlled under REACH."
+        2. If such a match exists, also summarize any details given in that chunk (such as restrictions, annex, notes).
+        3. If there is no exact match in the reference list but there are closely related substances or legal text that may apply, summarize these and provide the relevant general principles.
+        4. If there is insufficient context to determine applicability, state that.
+
+        Substance to check: '{input}'
+
+        Context:
+        {context}
+        """
         )
 
         combine_reach_docs_chain = create_stuff_documents_chain(self.llm, reach_verification_prompt_template)
-        reach_retrieval_chain = create_retrieval_chain(reach_retriever, combine_reach_docs_chain)
+        reach_retrieval_chain = create_retrieval_chain(combined_retriever, combine_reach_docs_chain)
 
         try:
             response = reach_retrieval_chain.invoke({"input": component_name_english})
@@ -254,27 +304,80 @@ class GeminiPDFProcessor:
             return "Failed to determine applicability due to error."
 
 
-# --- Streamlit App ---
 
-st.set_page_config(
-    page_title="REACH Compliance Assistant",
-    page_icon="🔬",
-    layout="wide"
-)
+@st.cache_resource
+def get_processor():
+    try:
+        api_key = os.environ.get("GEMINI_API_KEY")
+        if not api_key:
+            st.error("GEMINI_API_KEY environment variable not set. Please set it and rerun the app.")
+            st.stop()
+        return GeminiPDFProcessor(model_name='gemini-2.0-flash')
+    except ValueError as e:
+        st.error(f"Initialization error: {e}")
+        st.stop()
 
-st.title("🔬 REACH Compliance Assistant")
-st.markdown("Upload a product sheet PDF, identify components, and verify their compliance against REACH legislation.")
+processor = get_processor()
 
-# --- Initialize Session State ---
-if 'extracted_components' not in st.session_state:
-    st.session_state.extracted_components = []  # List of {'original': ..., 'english': ...} dicts
-if 'reach_verification_results' not in st.session_state:
-    st.session_state.reach_verification_results = []  # List of {'component_original': ..., 'component_english': ..., 'applicability': ...}
-if 'product_pdf_processed' not in st.session_state:
-    st.session_state.product_pdf_processed = False
-if 'reach_db_ready' not in st.session_state:
+# --- Load REACH Knowledge Base (once) ---
+reach_guidance_pdf_path = "REACH guidance document.pdf"
+reach_regulation_pdf_path = "CELEX_32006R1907_EN_TXT.pdf"
+reach_documents_for_rag = [reach_guidance_pdf_path, reach_regulation_pdf_path]
+
+missing_reach_files = [f for f in reach_documents_for_rag if not os.path.exists(f)]
+if missing_reach_files:
+    st.error(
+        f"Error: The following REACH legislation PDF files are missing from the app directory: {', '.join(missing_reach_files)}")
+    st.info("Please ensure these files are present to build the REACH knowledge base.")
+    st.stop()
+
+reach_vector_db = processor._create_or_load_vector_db(reach_documents_for_rag)
+if reach_vector_db:
+    reach_retriever = reach_vector_db.as_retriever(search_kwargs={"k": 5})
+    st.session_state.reach_db_ready = True
+else:
     st.session_state.reach_db_ready = False
+    st.warning("REACH knowledge base could not be built. Verification will not be possible.")
 
+# ----------- NEW: Load and embed the Excel substance list -----------
+@st.cache_resource
+def create_or_load_substance_db(substance_xlsx_path, gemini_api_key, embedding_model_name):
+    # Build the embeddings object inside cache (hashable inputs only)
+    embeddings = GoogleGenerativeAIEmbeddings(model=embedding_model_name, google_api_key=gemini_api_key)
+    substance_docs = load_substances_from_excel(substance_xlsx_path)
+    docs_for_chroma = [Document(page_content=doc, metadata={}) for doc in substance_docs]
+    return Chroma.from_documents(
+        docs_for_chroma,
+        embeddings,
+        collection_name="reference_substances_db_collection",
+        persist_directory="./reference_substances_chroma_db"
+    )
+
+substance_xlsx_path = "list_of_reference_substances_jan2025_en.xlsx"
+
+if os.path.exists(substance_xlsx_path):
+    st.info("Loading reference substances from Excel...")
+    with st.spinner("Embedding and storing substance list in ChromaDB..."):
+        substance_db = create_or_load_substance_db(
+            substance_xlsx_path,
+            os.environ.get("GEMINI_API_KEY"),
+            'models/embedding-001'
+        )
+    st.success("Reference substances loaded and embedded.")
+    substance_retriever = substance_db.as_retriever(search_kwargs={"k": 3})
+else:
+    st.warning(f"Substance reference Excel '{substance_xlsx_path}' not found. Skipping.")
+    substance_retriever = None
+# --------------------------------------------------------------------
+
+# ----------- NEW: Combine retrievers for RAG ------------------------
+if substance_retriever is not None:
+    combined_retriever = EnsembleRetriever(
+        retrievers=[reach_retriever, substance_retriever],
+        weights=[0.7, 0.3]  # Prioritize legal docs, but adjust as you wish
+    )
+else:
+    combined_retriever = reach_retriever
 
 # --- Instantiate Processor (once) ---
 @st.cache_resource
@@ -331,17 +434,12 @@ if st.session_state.product_pdf_processed:
     for i, component_data in enumerate(current_components_list):
         col1, col2 = st.columns([0.8, 0.2])
         with col1:
-            display_name = f"{component_data['original']} (English: {component_data['english']})" if component_data[
-                                                                                                         'original'] != \
-                                                                                                     component_data[
-                                                                                                         'english'] else \
-            component_data['original']
-            st.write(f"- {display_name}")
+            st.write(f"- **{component_data['english']}** ({component_data['original']})")
         with col2:
             if st.button(f"Remove", key=f"remove_comp_{i}"):
-                st.session_state.extracted_components.pop(i)  # Remove by index
-                st.session_state.reach_verification_results = []  # Clear results if list changes
-                st.rerun()  # Rerun to update the displayed list
+                st.session_state.extracted_components.pop(i)
+                st.session_state.reach_verification_results = []
+                st.rerun()
 
     # Add new component input
     with st.form("add_component_form"):
@@ -385,7 +483,7 @@ if st.session_state.product_pdf_processed:
                     f"Verifying: {original_name} (English: {english_name}) ({i + 1}/{len(st.session_state.extracted_components)})")
                 with st.spinner(f"Processing '{english_name}'..."):
                     # Use the English name for the RAG query
-                    result = processor.verify_component_reach(english_name, reach_retriever)
+                    result = processor.verify_component_reach(english_name, combined_retriever)
 
                 st.session_state.reach_verification_results.append({
                     "component_original": original_name,
