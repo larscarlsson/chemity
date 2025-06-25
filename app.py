@@ -25,6 +25,7 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.retrievers import EnsembleRetriever
 from langchain.schema import Document
+from langchain_core.messages import HumanMessage
 
 # CORRECTED IMPORT FOR CHROMA
 try:
@@ -269,40 +270,49 @@ class GeminiPDFProcessor:
             st.warning(f"Translation failed for '{text}': {e}. Using original name.")
             return text  # Fallback to original if translation fails
 
-    def extract_components(self, product_sheet_pdf_stream):
+    def extract_components(self, uploaded_file):
         """
-        Extracts described and probable components from a product sheet PDF,
+        Extracts described and probable components from any supported file (PDF, Word, Excel, Image)
         and translates them to English.
         """
-        st.info("Extracting components from product sheet...")
-        #product_sheet_text = self._extract_text_from_pdf_stream(product_sheet_pdf_stream)
-        product_sheet_text = extract_text_from_uploaded(product_sheet_pdf_stream)
-
-        if product_sheet_text is None:
-            return []
-
+        st.info("Extracting components from product description...")
 
         component_extraction_prompt = (
-            "From the following product description, identify and list all described components "
-            "and any probable components that would typically be part of such a product. "
+            "From the attached file, extract and list only the product components that are actually present or described. "
+            "If any of them potentially can be a Substance of Very High Concern (SVHC) candidate or restricted under REACH. "
             "Present them as a comma-separated list of items. "
-            "If no components are described or you cannot confidently identify any, respond only with an empty list (leave blank). "
-            "Do not invent or suggest generic product components or make up items. "
-            "\n\n--- Product Description Start ---\n"
-            f"{product_sheet_text}"
-            "\n--- Product Description End ---"
+            "If you cannot confidently identify any, return an empty response and do not make up or suggest generic components."
         )
 
         try:
-            with st.spinner("Asking Gemini to identify components..."):
-                component_response = self.llm.invoke(component_extraction_prompt)
-            extracted_components_raw = component_response.content
+            # Read the file content as bytes
+            file_content = uploaded_file.getvalue()
+            file_type = uploaded_file.type # Get the MIME type
+
+            # Create a HumanMessage with both text and the file content
+            message = HumanMessage(
+                content=[
+                    {
+                        "type": "text",
+                        "text": component_extraction_prompt,
+                    },
+                    {
+                        "type": "media",
+                        "mime_type": file_type,
+                        "data": file_content, # Pass the raw bytes
+                    },
+                ]
+            )
+
+            with st.spinner("Asking LLM to identify components from the attached file..."):
+                response = self.llm.invoke([message]) # Invoke with the message list
+            extracted_components_raw = getattr(response, "content", str(response)).strip()
         except Exception as e:
             st.error(f"Error extracting components: {e}")
             st.warning(f"API Error Details: {e}")
             return []
 
-        if extracted_components_raw is None:
+        if not extracted_components_raw:
             return []
 
         components = [
@@ -321,6 +331,7 @@ class GeminiPDFProcessor:
 
         st.success(f"Identified and translated {len(translated_components)} components.")
         return translated_components
+
 
     def verify_component_reach(self, component_name_english, combined_retriever):
         """
