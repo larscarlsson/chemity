@@ -1,3 +1,6 @@
 .env
 /.venv/
 *.pyc
+reach_chroma_db/
+__pycache__/
+reach_chroma_db/chroma.sqlite3
