@@ -6,6 +6,10 @@ import re
 from io import BytesIO
 import time
 import pandas as pd
+from PIL import Image
+import pytesseract
+import docx2txt
+
 
 # ReportLab Imports
 from reportlab.lib.pagesizes import letter
@@ -58,6 +62,49 @@ def load_substances_from_excel(excel_path):
         docs.append(doc_text)
     return docs
 # ---------------------------------------------------------------
+def extract_text_from_uploaded(uploaded_file):
+    file_type = uploaded_file.name.split('.')[-1].lower()
+
+    if file_type == 'pdf':
+        # Your existing PDF extraction logic
+        try:
+            reader = PyPDF2.PdfReader(uploaded_file)
+            return "\n".join([page.extract_text() or "" for page in reader.pages])
+        except Exception as e:
+            st.error(f"PDF extraction error: {e}")
+            return ""
+
+    elif file_type in ['png', 'jpg', 'jpeg', 'tiff']:
+        try:
+            image = Image.open(uploaded_file)
+            text = pytesseract.image_to_string(image)
+            return text
+        except Exception as e:
+            st.error(f"OCR error: {e}")
+            return ""
+
+    elif file_type == 'docx':
+        try:
+            text = docx2txt.process(uploaded_file)
+            return text
+        except Exception as e:
+            st.error(f"Word extraction error: {e}")
+            return ""
+
+    elif file_type in ['xlsx', 'xls']:
+        try:
+            df = pd.read_excel(uploaded_file)
+            # Try to get all cell content as text (tabular)
+            text = df.astype(str).apply(lambda x: " | ".join(x), axis=1).str.cat(sep="\n")
+            return text
+        except Exception as e:
+            st.error(f"Excel extraction error: {e}")
+            return ""
+
+    else:
+        st.warning("Unsupported file type")
+        return ""
+
 
 # --- Streamlit App ---
 
@@ -68,7 +115,7 @@ st.set_page_config(
 )
 
 st.title("🔬 REACH Compliance Assistant")
-st.markdown("Upload a product sheet PDF, identify components, and verify their compliance against REACH legislation.")
+st.markdown("Upload a product description, identify components, and verify their compliance against REACH legislation.")
 
 # --- Initialize Session State ---
 if 'extracted_components' not in st.session_state:
@@ -416,11 +463,14 @@ else:
     st.warning("REACH knowledge base could not be built. Verification will not be possible.")
 
 # --- Product PDF Upload Section ---
-st.header("1. Upload Product Sheet PDF")
-uploaded_product_pdf = st.file_uploader("Choose a product PDF file", type="pdf")
+st.header("1. Upload Product Description")
+uploaded_file = st.file_uploader(
+    "Choose a product file (PDF, Word, Excel, or image)",
+    type=["pdf", "docx", "xlsx", "xls", "png", "jpg", "jpeg", "tiff"]
+)
 
-if uploaded_product_pdf and not st.session_state.product_pdf_processed:
-    st.session_state.extracted_components = processor.extract_components(uploaded_product_pdf)
+if uploaded_file and not st.session_state.product_pdf_processed:
+    st.session_state.extracted_components = processor.extract_components(uploaded_file)
     st.session_state.product_pdf_processed = True
     st.session_state.reach_verification_results = []  # Clear previous results
 
