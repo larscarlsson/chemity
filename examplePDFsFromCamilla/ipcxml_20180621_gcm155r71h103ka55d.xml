@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<MCD declarationType="All" formType="Request/Reply" ipcStandard="1752-2" version="1.1">
+<ProductID manufacturerItemName="Ceramic Capacitor" manufacturerItemNumber="GCM155R71H103KA55D" requesterItemNumber=""/>
+<PIP pipIdentifier="2A13" pipVersion="D11.00.00" tpirVersion="01.00"/>
+<Response date="2018-06-21" docID="3T6E1959" fieldLock="false">
+<Authorizer email="Dboatright@murata.com" name="Donnie Boatright" phone="770-436-1300" title="Corp QA Manager"/>
+<Supplier name="Murata Electronics North America ">
+<UniqueID authority="" identity=""/>
+</Supplier>
+<Contact email="techhelp@murata.com" name="Techhelp" phone="770-436-1300" title="Corp QA Manager"/>
+<Product unitVolume="Each">
+<Amount unitOfMeasure="mg" weight="1.6"/>
+<RoHSDeclaration legalDef="Supplier certifies that it gathered the information it provides in this form concerning RoHS restrictive substances  using appropriate methods to ensure its accuracy and that such information is true and correct to the best of its knowledge and belief, as of the date that Supplier completes this form.  Supplier acknowledges that Company will rely on this certification in determining the compliance of its products with European Union member state laws that implement the RoHS Directive.  Company acknowledges that Supplier may have relied on information provided by others in completing this form, and that Supplier may not have independently verified such information.  However, in situations where Supplier has not independently verified information provided by others, Supplier agrees that, at a minimum, its suppliers have provided certifications regarding their contributions to the part, and those certifications are at least as comprehensive as the certification in this paragraph.  If the Company and the Supplier enter into a written agreement with respect to the identified part,the terms and conditions of that agreement, including any warranty rights and/or remedies provided as part of that agreement, will be the sole and exclusive source of the Supplier's liability and the Company's remedies for issues that arise regarding information the Supplier provides in this form." legalType="Simplified" rohsDeclaration="1 - Item(s) does not contain RoHS restricted substances per the definition above" supplierAcceptance="true"/>
+<SubItem name="GCM155R71H103KA55D">
+<HomogeneousMaterial name="Ceramic element/Ceramics">
+<Amount unitOfMeasure="mg" weight="1.0650"/>
+<SubstanceCategory jigLevel="Supplier" name="Barium oxide, obtained by calcining witherite">
+<Substance cas="1304-28-5" name="Barium oxide, obtained by calcining witherite">
+<Amount ppm="600000" unitOfMeasure="mg" weight="0.639000"/>
+</Substance>
+</SubstanceCategory>
+<SubstanceCategory jigLevel="Supplier" name="Titanium dioxide">
+<Substance cas="13463-67-7" name="Titanium dioxide">
+<Amount ppm="300000" unitOfMeasure="mg" weight="0.319500"/>
+</Substance>
+</SubstanceCategory>
+<SubstanceCategory jigLevel="Supplier" name="Misc">
+<Substance cas="-" name="Misc">
+<Amount ppm="100000" unitOfMeasure="mg" weight="0.106500"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+<HomogeneousMaterial name="Outer electrode/Copper alloys">
+<Amount unitOfMeasure="mg" weight="0.17190"/>
+<SubstanceCategory jigLevel="Supplier" name="Copper">
+<Substance cas="7440-50-8" name="Copper">
+<Amount ppm="1000000" unitOfMeasure="mg" weight="0.1719000"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+<HomogeneousMaterial name="Outer electrode/Glass">
+<Amount unitOfMeasure="mg" weight="0.01910"/>
+<SubstanceCategory jigLevel="Supplier" name="diboron trioxide; boric oxide">
+<Substance cas="1303-86-2" name="diboron trioxide; boric oxide">
+<Amount ppm="200000" unitOfMeasure="mg" weight="0.0038200"/>
+</Substance>
+</SubstanceCategory>
+<SubstanceCategory jigLevel="Supplier" name="Silicon dioxide">
+<Substance cas="7631-86-9" name="Silicon dioxide">
+<Amount ppm="800000" unitOfMeasure="mg" weight="0.0152800"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+<HomogeneousMaterial name="Nickel Plating Layer/Nickel plating">
+<Amount unitOfMeasure="mg" weight="0.0180"/>
+<SubstanceCategory jigLevel="Supplier" name="Nickel">
+<Substance cas="7440-02-0" name="Nickel">
+<Amount ppm="1000000" unitOfMeasure="mg" weight="0.018000"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+<HomogeneousMaterial name="Inner electrode/Nickel and Nickel alloys">
+<Amount unitOfMeasure="mg" weight="0.2790"/>
+<SubstanceCategory jigLevel="Supplier" name="Nickel">
+<Substance cas="7440-02-0" name="Nickel">
+<Amount ppm="1000000" unitOfMeasure="mg" weight="0.279000"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+<HomogeneousMaterial name="Tin Plating Layer/Tin plating">
+<Amount unitOfMeasure="mg" weight="0.0470"/>
+<SubstanceCategory jigLevel="Supplier" name="Tin">
+<Substance cas="7440-31-5" name="Tin">
+<Amount ppm="1000000" unitOfMeasure="mg" weight="0.047000"/>
+</Substance>
+</SubstanceCategory>
+</HomogeneousMaterial>
+</SubItem>
+</Product>
+</Response>
+</MCD>
